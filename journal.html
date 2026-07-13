@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Void</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+
+        body {
+            background-color: black;
+            color: #e0e0e0;
+            font-family: 'Fira Code', monospace;
+            font-size: 1.2rem; /* Scaled down slightly to fit comments gracefully */
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #journal-entries {
+            flex-grow: 1;
+            padding-bottom: 6rem;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .entry {
+            margin-bottom: 3rem;
+            opacity: 0.9;
+            border-left: 2px solid #333;
+            padding-left: 1.5rem;
+        }
+
+        .entry-content {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .entry img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+
+        /* The mysterious comments section */
+        .comments-section {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #888;
+        }
+
+        .comment {
+            margin-top: 0.5rem;
+        }
+
+        .comment-author {
+            color: #555;
+            margin-right: 0.5rem;
+        }
+
+        .comment-button {
+            background: transparent;
+            border: none;
+            color: #555;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 0;
+            margin-top: 1rem;
+        }
+        
+        .comment-button:hover { color: #fff; }
+
+        .comment-input-container {
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .comment-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #555;
+            color: #888;
+            font-family: inherit;
+            outline: none;
+            width: 100%;
+        }
+
+        /* The hidden admin prompt */
+        #prompt-container {
+            display: none; /* HIDDEN BY DEFAULT */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: black;
+            padding: 1rem 2rem;
+            align-items: center;
+            border-top: 1px solid #333;
+        }
+
+        .prompt-symbol { color: #fff; margin-right: 1rem; font-weight: bold; }
+        #command-line {
+            background: transparent; border: none; color: white;
+            font-family: inherit; font-size: 1.5rem; width: 100%; outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="journal-entries">
+        </div>
+
+    <div id="prompt-container">
+        <span class="prompt-symbol">>_ ADMIN:</span>
+        <input type="text" id="command-line" autocomplete="off" placeholder="Post to the void...">
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        // ==========================================
+        // 1. YOUR FIREBASE CONFIG
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxRqe3YEtMjp5H2X3YpinUdjp1XwanHmg",
+            authDomain: "journal-7d381.firebaseapp.com",
+            projectId: "journal-7d381",
+            storageBucket: "journal-7d381.firebasestorage.app",
+            messagingSenderId: "238066187526",
+            appId: "1:238066187526:web:01d7831292ddfe95913287"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const journal = document.getElementById('journal-entries');
+        const promptContainer = document.getElementById('prompt-container');
+        const commandLine = document.getElementById('command-line');
+        let isAdmin = false;
+
+        // 2. The Real Secret Handshake
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+                const password = prompt("ENTER SYSTEM OVERRIDE:");
+                signInWithEmailAndPassword(auth, "god@mind.com", password)
+                    .then(() => {
+                        isAdmin = true;
+                        promptContainer.style.display = 'flex';
+                        commandLine.focus();
+                        console.log("Access Granted.");
+                    })
+                    .catch(() => {
+                        alert("ACCESS DENIED.");
+                    });
+            }
+        });
+
+        // 3. Fetch Data Live
+        const q = query(collection(db, "entries"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            journal.innerHTML = '';
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const entryId = doc.id;
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'entry';
+                
+                let contentHTML = data.type === 'image' 
+                    ? `<img src="${data.content}" alt="image">` 
+                    : `<div class="entry-content">${data.content}</div>`;
+
+                entryDiv.innerHTML = `
+                    ${contentHTML}
+                    <div class="comments-section" id="comments-${entryId}"></div>
+                    <button class="comment-button" data-id="${entryId}">[ leave a note ]</button>
+                    <div class="comment-input-container" id="input-container-${entryId}">
+                        <input type="text" class="comment-input" data-id="${entryId}" placeholder="type and press enter...">
+                    </div>
+                `;
+                journal.appendChild(entryDiv);
+
+                const commentsQ = query(collection(db, "comments"), orderBy("createdAt", "asc"));
+                onSnapshot(commentsQ, (commentSnapshot) => {
+                    const commentsDiv = document.getElementById(`comments-${entryId}`);
+                    if(commentsDiv) {
+                        commentsDiv.innerHTML = '';
+                        commentSnapshot.forEach((cDoc) => {
+                            const cData = cDoc.data();
+                            if(cData.entryId === entryId) {
+                                commentsDiv.innerHTML += `<div class="comment"><span class="comment-author">user:</span>${cData.text}</div>`;
+                            }
+                        });
+                    }
+                });
+            });
+        });
+
+        // 4. Handle UI Interactions
+        journal.addEventListener('click', (e) => {
+            if (e.target.classList.contains('comment-button')) {
+                const id = e.target.getAttribute('data-id');
+                const inputContainer = document.getElementById(`input-container-${id}`);
+                inputContainer.style.display = 'block';
+                inputContainer.querySelector('.comment-input').focus();
+                e.target.style.display = 'none';
+            }
+        });
+
+        journal.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter' && e.target.classList.contains('comment-input') && e.target.value.trim() !== '') {
+                await addDoc(collection(db, "comments"), {
+                    entryId: e.target.getAttribute('data-id'),
+                    text: e.target.value,
+                    createdAt: serverTimestamp()
+                });
+                e.target.value = '';
+            }
+        });
+
+        // 5. Admin Command Line Logic
+        commandLine.addEventListener('keypress', async function (e) {
+            if (e.key === 'Enter' && this.value.trim() !== '' && isAdmin) {
+                const input = this.value;
+                const isImage = input.match(/\.(jpeg|jpg|gif|png)$/i);
+                await addDoc(collection(db, "entries"), {
+                    type: isImage ? 'image' : 'text',
+                    content: input,
+                    createdAt: serverTimestamp()
+                });
+                this.value = ''; 
+            }
+        });
+    </script>
+</body>
+</html>
