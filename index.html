@@ -206,47 +206,68 @@
         });
 
         // 4. Handle UI Interactions (Event Delegation)
+journal.addEventListener('click', (e) => {
+    // Check if the clicked element IS the comment button
+    if (e.target.classList.contains('comment-button')) {
+        const id = e.target.getAttribute('data-id');
+        const inputContainer = document.getElementById(`input-container-${id}`);
+        
+        // Show the container and hide the button
+        inputContainer.style.display = 'block';
+        inputContainer.querySelector('.comment-input').focus();
+        e.target.style.display = 'none'; 
+    }
+});
+
+// Handle the textarea behavior
 journal.addEventListener('keydown', async (e) => {
+    // Only run if the user is typing in our comment area
     if (e.target.classList.contains('comment-input')) {
         
-        // If they press Enter
         if (e.key === 'Enter') {
-            // If Shift is NOT held down, submit the comment
-            if (!e.shiftKey) {
-                e.preventDefault(); // Stop it from adding a newline to the text
+            // IF SHIFT IS PRESSED: Allow the new line (do nothing, let default happen)
+            if (e.shiftKey) {
+                return; 
+            } 
+            
+            // IF NO SHIFT: Submit the comment
+            e.preventDefault(); // Stop it from creating a new line
+            
+            const id = e.target.getAttribute('data-id');
+            const text = e.target.value.trim();
+            
+            if (text !== '') {
+                await addDoc(collection(db, "comments"), {
+                    entryId: id,
+                    text: text,
+                    createdAt: serverTimestamp()
+                });
                 
-                const id = e.target.getAttribute('data-id');
-                const text = e.target.value.trim();
-                
-                if (text !== '') {
-                    // Push to Firebase
-                    await addDoc(collection(db, "comments"), {
-                        entryId: id,
-                        text: text,
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    e.target.value = ''; // Clear input
-                }
+                // Clear and close
+                e.target.value = '';
+                const idContainer = document.getElementById(`input-container-${id}`);
+                const button = document.querySelector(`.comment-button[data-id="${id}"]`);
+                idContainer.style.display = 'none';
+                button.style.display = 'block'; // Show the button again
             }
-            // If Shift IS held down, do nothing (default behavior adds a newline)
         }
     }
 });
 
-        // 5. Admin Command Line Logic
-        commandLine.addEventListener('keypress', async function (e) {
-            if (e.key === 'Enter' && this.value.trim() !== '' && isAdmin) {
-                const input = this.value;
-                const isImage = input.match(/\.(jpeg|jpg|gif|png)$/i);
-                await addDoc(collection(db, "entries"), {
-                    type: isImage ? 'image' : 'text',
-                    content: input,
-                    createdAt: serverTimestamp()
-                });
-                this.value = ''; 
-            }
+// 5. Admin Command Line Logic
+commandLine.addEventListener('keypress', async function (e) {
+    if (e.key === 'Enter' && this.value.trim() !== '' && isAdmin) {
+        const input = this.value;
+        const isImage = input.match(/\.(jpeg|jpg|gif|png)$/i);
+        
+        await addDoc(collection(db, "entries"), {
+            type: isImage ? 'image' : 'text',
+            content: input,
+            createdAt: serverTimestamp()
         });
+        this.value = ''; 
+    }
+});
     </script>
 </body>
 </html>
