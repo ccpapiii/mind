@@ -1,1 +1,1 @@
-https://ccpapiii.github.io/mind/
+https://kfuwu.github.io/mind/
