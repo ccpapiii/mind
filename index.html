@@ -79,15 +79,18 @@
             margin-top: 0.5rem;
         }
 
-        .comment-input {
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid #555;
-            color: #888;
-            font-family: inherit;
-            outline: none;
-            width: 100%;
-        }
+    .comment-input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #555;
+        color: #888;
+        font-family: inherit;
+        outline: none;
+        width: 100%;
+        resize: none; /* Prevents users from manually resizing the box */
+        overflow: hidden; /* Hides the scrollbar */
+        padding: 0;
+    }
 
         /* The hidden admin prompt */
         #prompt-container {
@@ -181,7 +184,7 @@
                     <div class="comments-section" id="comments-${entryId}"></div>
                     <button class="comment-button" data-id="${entryId}">[ leave a note ]</button>
                     <div class="comment-input-container" id="input-container-${entryId}">
-                        <input type="text" class="comment-input" data-id="${entryId}" placeholder="type and press enter...">
+                        <textarea class="comment-input" data-id="${entryId}" placeholder="type and press enter..."></textarea>
                     </div>
                 `;
                 journal.appendChild(entryDiv);
@@ -202,27 +205,34 @@
             });
         });
 
-        // 4. Handle UI Interactions
-        journal.addEventListener('click', (e) => {
-            if (e.target.classList.contains('comment-button')) {
+        // 4. Handle UI Interactions (Event Delegation)
+journal.addEventListener('keydown', async (e) => {
+    if (e.target.classList.contains('comment-input')) {
+        
+        // If they press Enter
+        if (e.key === 'Enter') {
+            // If Shift is NOT held down, submit the comment
+            if (!e.shiftKey) {
+                e.preventDefault(); // Stop it from adding a newline to the text
+                
                 const id = e.target.getAttribute('data-id');
-                const inputContainer = document.getElementById(`input-container-${id}`);
-                inputContainer.style.display = 'block';
-                inputContainer.querySelector('.comment-input').focus();
-                e.target.style.display = 'none';
+                const text = e.target.value.trim();
+                
+                if (text !== '') {
+                    // Push to Firebase
+                    await addDoc(collection(db, "comments"), {
+                        entryId: id,
+                        text: text,
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    e.target.value = ''; // Clear input
+                }
             }
-        });
-
-        journal.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter' && e.target.classList.contains('comment-input') && e.target.value.trim() !== '') {
-                await addDoc(collection(db, "comments"), {
-                    entryId: e.target.getAttribute('data-id'),
-                    text: e.target.value,
-                    createdAt: serverTimestamp()
-                });
-                e.target.value = '';
-            }
-        });
+            // If Shift IS held down, do nothing (default behavior adds a newline)
+        }
+    }
+});
 
         // 5. Admin Command Line Logic
         commandLine.addEventListener('keypress', async function (e) {
