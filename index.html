@@ -11,7 +11,7 @@
             background-color: black;
             color: #e0e0e0;
             font-family: 'Fira Code', monospace;
-            font-size: 1.2rem;
+            font-size: 1.2rem; 
             margin: 0;
             padding: 2rem;
             display: flex;
@@ -106,7 +106,7 @@
         }
 
         .prompt-symbol { color: #fff; margin-right: 1rem; font-weight: bold; }
-        
+        /* Update your command-line style */
 #command-line {
     background: transparent; 
     border: none; 
@@ -162,7 +162,7 @@
         const commandLine = document.getElementById('command-line');
         let isAdmin = false;
 
-        // 2. The Real Secret Handshake
+        
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey && e.key === 'V') {
                 const password = prompt("ENTER SYSTEM OVERRIDE:");
